@@ -1,12 +1,8 @@
 defmodule ViaDisplayScenic.Gcs.FixedWing do
   use Scenic.Scene
   require Logger
-  require ViaUtils.Comms.Groups, as: Groups
-
-  @pcl_1 1
-  @pcl_2 2
-  @pcl_3 3
-  @pcl_4 4
+  require ViaUtils.Shared.Groups, as: Groups
+  require ViaUtils.Shared.ControlTypes, as: CT
 
   import Scenic.Primitives
   @font_size 19
@@ -399,10 +395,10 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     graph = state.graph
 
     graph =
-      if pcl < @pcl_1 do
+      if pcl < CT.pilot_control_level_1() do
         clear_text_values(graph, [:rollrate_cmd, :pitchrate_cmd, :yawrate_cmd, :throttle_cmd])
       else
-        cmds = Map.get(all_cmds, @pcl_1, %{})
+        cmds = Map.get(all_cmds, CT.pilot_control_level_1(), %{})
 
         rollrate =
           Map.get(cmds, :rollrate_rps, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
@@ -423,10 +419,10 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       end
 
     graph =
-      if pcl < @pcl_2 do
+      if pcl < CT.pilot_control_level_2() do
         clear_text_values(graph, [:roll_cmd, :pitch_cmd, :deltayaw_cmd, :thrust_cmd])
       else
-        cmds = Map.get(all_cmds, @pcl_2, %{})
+        cmds = Map.get(all_cmds, CT.pilot_control_level_2(), %{})
 
         roll = Map.get(cmds, :roll_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
         pitch = Map.get(cmds, :pitch_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
@@ -444,10 +440,10 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       end
 
     graph =
-      if pcl < @pcl_3 do
+      if pcl < CT.pilot_control_level_3() do
         clear_text_values(graph, [:speed_3_cmd, :course_cmd, :altitude_cmd, :sideslip_3_cmd])
       else
-        cmds = Map.get(all_cmds, @pcl_3, %{})
+        cmds = Map.get(all_cmds, CT.pilot_control_level_3(), %{})
         speed = Map.get(cmds, :groundspeed_mps, 0) |> ViaUtils.Format.eftb(1)
 
         course =
@@ -466,7 +462,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       end
 
     graph =
-      if pcl < @pcl_4 do
+      if pcl < CT.pilot_control_level_4() do
         clear_text_values(graph, [
           :speed_4_cmd,
           :course_rate_cmd,
@@ -474,7 +470,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           :sideslip_4_cmd
         ])
       else
-        cmds = Map.get(all_cmds, @pcl_4, %{})
+        cmds = Map.get(all_cmds, CT.pilot_control_level_4(), %{})
         speed = Map.get(cmds, :groundspeed_mps, 0) |> ViaUtils.Format.eftb(1)
 
         course_rate =
@@ -521,7 +517,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   end
 
   def update_pilot_control_level(pilot_control_level, graph) do
-    Enum.reduce(@pcl_4..@pcl_1, graph, fn pcl, acc ->
+    Enum.reduce(CT.pilot_control_level_4()..CT.pilot_control_level_1(), graph, fn pcl, acc ->
       if pcl == pilot_control_level do
         Scenic.Graph.modify(
           acc,
