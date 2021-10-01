@@ -23,7 +23,7 @@ defmodule ViaDisplayScenic.MixProject do
   defp deps do
     [
       {:via_utils,
-       path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-utils", override: true},
+       path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-utils"},
       # Scenic dependencies
       {:scenic, "~> 0.10.5"},
       {:scenic_driver_glfw, "~> 0.10.1", targets: :host},

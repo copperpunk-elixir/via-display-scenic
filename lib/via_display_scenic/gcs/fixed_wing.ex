@@ -17,12 +17,12 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
 
   @impl true
   def init(args, opts) do
+    Logger.warn("gcs pid: #{inspect(self())}")
     Logger.debug("Gcs.init: #{inspect(opts)}")
-    Logger.debug("Gcs.args: #{inspect(args)}")
+    Logger.debug("Gcs.args: #{inspect(Keyword.drop(args, [:gcs_state]))}")
+    viewport = opts[:viewport]
 
-    {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} =
-      opts[:viewport]
-      |> Scenic.ViewPort.info()
+    {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
 
     # col = vp_width / 12
     label_value_width = 125
@@ -37,6 +37,8 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     modify_ip_height = ip_height
     reset_estimation_width = 160
     reset_estimation_height = ip_height - 5
+    go_to_planner_width = 80
+    go_to_planner_height = ip_height * 2
     cluster_status_side = 100
     # build the graph
     offset_x_origin = 10
@@ -138,11 +140,13 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {ip_labels, ip_text, ip_ids} =
-      if Map.get(args, :realflight_sim, false) do
+      if Keyword.get(args, :realflight_sim, false) do
         {["Host IP", "RealFlight IP"], ["searching...", "waiting..."], [:host_ip, :realflight_ip]}
       else
         {["Host IP"], ["searching..."], [:host_ip]}
       end
+
+    offset_y_bottom_row = offset_y
 
     {graph, offset_x, _offset_y} =
       ViaDisplayScenic.Gcs.Utils.add_columns_to_graph(graph, %{
@@ -158,7 +162,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
         font_size: @font_size
       })
 
-    {graph, _offset_x, offset_y} =
+    {graph, offset_x_reset_est, offset_y} =
       ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
         text: "Reset Estimation",
         id: :reset_estimation,
@@ -173,7 +177,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     offset_y = offset_y + 5
 
     graph =
-      if Map.get(args, :realflight_sim, false) do
+      if Keyword.get(args, :realflight_sim, false) do
         {graph, offset_x, _offset_y} =
           ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
             text: "+",
@@ -198,7 +202,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
             offset_y: offset_y
           })
 
-        {graph, _offset_x, _offset_y} =
+        {graph, offset_x, _offset_y} =
           ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
             text: "Set IP",
             id: :set_realflight_ip,
@@ -210,8 +214,32 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
             offset_y: offset_y
           })
 
+        {graph, _offset_x, _offset_y} =
+          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+            text: "Planner",
+            id: :go_to_planner,
+            theme: %{text: :white, background: :blue, active: :grey, border: :white},
+            width: go_to_planner_width,
+            height: go_to_planner_height,
+            font_size: @font_size,
+            offset_x: offset_x + 5,
+            offset_y: offset_y_bottom_row
+          })
+
         graph
       else
+        {graph, _offset_x, _offset_y} =
+          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+            text: "Planner",
+            id: :go_to_planner,
+            theme: %{text: :white, background: :blue, active: :grey, border: :white},
+            width: go_to_planner_width,
+            height: go_to_planner_height,
+            font_size: @font_size,
+            offset_x: offset_x_reset_est + 5,
+            offset_y: offset_y_bottom_row
+          })
+
         graph
       end
 
@@ -283,18 +311,37 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     ViaUtils.Comms.join_group(__MODULE__, :host_ip_address_updated)
     ViaUtils.Comms.join_group(__MODULE__, :realflight_ip_address_updated)
 
-    state = %{
-      graph: graph,
-      host_ip: nil,
-      realflight_ip: nil,
-      save_log_file: ""
-    }
+    previous_state = args[:gcs_state]
 
-    if Map.get(args, :realflight_sim, false) do
-      :erlang.send_after(3000, self(), :request_realflight_ip_address)
+    state =
+      if is_nil(previous_state) do
+        %{
+          graph: graph,
+          viewport: viewport,
+          args: Keyword.drop(args, [:gcs_state]),
+          host_ip: nil,
+          realflight_ip: nil,
+          save_log_file: ""
+        }
+      else
+        Map.put(previous_state, :graph, graph)
+      end
+
+    # Logger.debug("prev GCS state: #{inspect(previous_state)}")
+
+    if Keyword.get(args, :realflight_sim, false) do
+      :erlang.send_after(1000, self(), :request_realflight_ip_address)
     end
 
+    :erlang.send_after(1000, self(), :request_host_ip_address)
+
     {:ok, state, push: graph}
+  end
+
+  @impl Scenic.Scene
+  def terminate(reason, state) do
+    Logger.warn("GCS terminate: #{inspect(reason)}")
+    {:noreply, state}
   end
 
   @impl true
@@ -303,10 +350,18 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
 
     ViaUtils.Comms.send_local_msg_to_group(
       __MODULE__,
-      :get_realflight_ip_address,
-      :get_realflight_ip_address,
+      {:get_realflight_ip_address, self()},
       self()
     )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:request_host_ip_address, state) do
+    Logger.debug("request host ip")
+
+    ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {:get_host_ip_address, self()}, self())
 
     {:noreply, state}
   end
@@ -622,5 +677,20 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     )
 
     {:cont, event, state}
+  end
+
+  @impl Scenic.Scene
+  def filter_event({:click, :go_to_planner}, _from, state) do
+    Logger.debug("Go To Planner")
+    vp = state.viewport
+
+    args =
+      state.args
+      |> Keyword.put(:gcs_state, Map.drop(state, [:graph]))
+
+    planner_scene = args[:planner_scene]
+    Scenic.ViewPort.set_root(vp, {planner_scene, args})
+    # {:cont, event, state}
+    {:noreply, state}
   end
 end

@@ -1,65 +1,72 @@
 defmodule ViaDisplayScenic do
+  @size {800, 480}
   def child_spec(config) do
-    gcs_scene = ViaDisplayScenic.Gcs.FixedWing
     # Display.Scenic.Planner
-    planner_scene = nil
+    vehicle_type = Keyword.fetch!(config, :vehicle_type)
+    gcs_scene = Module.concat(["ViaDisplayScenic.Gcs", vehicle_type])
 
-    driver_module =
-      if ViaUtils.File.target?() do
-        Scenic.Driver.Nerves.Rpi
-      else
-        Scenic.Driver.Glfw
-      end
+    opts =
+      Keyword.take(config, [:realflight_sim])
+      |> Keyword.put(:gcs_scene, gcs_scene)
+      |> Keyword.put(:planner_scene, ViaDisplayScenic.Planner)
 
-    gcs_drivers =
-      if ViaUtils.File.target?() do
-        [
-          %{
-            module: driver_module,
-            name: :gcs_driver,
-            opts: [resizeable: false, title: "gcs"]
-          },
-          %{
-            module: Scenic.Driver.Nerves.Touch,
-            opts: [
-              device: "raspberrypi-ts",
-              calibration: {{1, 0, 0}, {1, 0, 0}}
-            ]
-          }
-        ]
-      else
-        [
-          %{
-            module: driver_module,
-            name: :gcs_driver,
-            opts: [resizeable: false, title: "gcs"]
-          }
-        ]
-      end
-
-    gcs_config = %{
-      name: :main_viewport,
-      size: {800, 480},
-      default_scene: {gcs_scene, %{realflight_sim: Keyword.get(config, :realflight_sim, false)}},
-      drivers: gcs_drivers
-    }
-
-    # PLANNER
-    planner_config = %{
-      name: :planner,
-      size: {1000, 1000},
-      default_scene: {planner_scene, %{}},
-      drivers: [
-        %{
-          module: driver_module,
-          name: :planner_driver,
-          opts: [resizeable: false, title: "planner"]
-        }
-      ]
-    }
-
-    viewports = if is_nil(planner_scene), do: [gcs_config], else: [gcs_config, planner_config]
+    viewports = [gcs_config(opts)]
 
     Supervisor.child_spec({Scenic, viewports: viewports}, id: :scenic_app)
+  end
+
+  @spec gcs_config(list()) :: map()
+  def gcs_config(opts) do
+    %{
+      name: :main_viewport,
+      size: @size,
+      default_scene: {opts[:gcs_scene], opts},
+      drivers: drivers("GCS")
+    }
+  end
+
+  def planner_config(opts) do
+    %{
+      name: :planner,
+      size: @size,
+      default_scene: {ViaDisplayScenic.Planner, opts},
+      drivers: drivers("Planner")
+    }
+  end
+
+  @spec driver_module :: Scenic.Driver.Glfw | Scenic.Driver.Nerves.Rpi
+  def driver_module() do
+    if ViaUtils.File.target?() do
+      Scenic.Driver.Nerves.Rpi
+    else
+      Scenic.Driver.Glfw
+    end
+  end
+
+  def drivers(title) do
+    if ViaUtils.File.target?() do
+      [
+        %{
+          module: driver_module(),
+          name: :gcs_driver,
+          opts: [resizeable: false, title: title]
+        },
+        %{
+          module: Scenic.Driver.Nerves.Touch,
+          opts: [
+            device: "raspberrypi-ts",
+            calibration: {{1, 0, 0}, {1, 0, 0}}
+          ]
+        }
+      ]
+    else
+      [
+        %{
+          module: driver_module(),
+          name: :gcs_driver,
+          opts: [resizeable: false, title: title]
+        }
+      ]
+    end
   end
 end
