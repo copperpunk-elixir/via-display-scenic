@@ -308,8 +308,8 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude())
     ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity())
     ViaUtils.Comms.join_group(__MODULE__, Groups.current_pilot_control_level_and_commands())
-    ViaUtils.Comms.join_group(__MODULE__, :host_ip_address_updated)
-    ViaUtils.Comms.join_group(__MODULE__, :realflight_ip_address_updated)
+    ViaUtils.Comms.join_group(__MODULE__, Groups.host_ip_address())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.realflight_ip_address())
 
     previous_state = args[:gcs_state]
 
@@ -350,7 +350,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
 
     ViaUtils.Comms.send_local_msg_to_group(
       __MODULE__,
-      {:get_realflight_ip_address, self()},
+      {Groups.get_realflight_ip_address(), self()},
       self()
     )
 
@@ -367,7 +367,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   end
 
   @impl true
-  def handle_cast({:host_ip_address_updated, ip_address}, state) do
+  def handle_cast({Groups.host_ip_address(), ip_address}, state) do
     Logger.warn("host ip updated: #{inspect(ip_address)}")
 
     graph = Scenic.Graph.modify(state.graph, :host_ip, &text(&1, ip_address))
@@ -375,7 +375,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   end
 
   @impl true
-  def handle_cast({:realflight_ip_address_updated, ip_address}, state) do
+  def handle_cast({Groups.realflight_ip_address(), ip_address}, state) do
     Logger.warn("RF ip updated: #{inspect(ip_address)}")
 
     graph =
@@ -650,13 +650,13 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
             ip_address
           end
 
-        GenServer.cast(self(), {:realflight_ip_address_updated, ip_address})
+        GenServer.cast(self(), {Groups.realflight_ip_address(), ip_address})
 
       !is_nil(state.host_ip) ->
         ip_address =
           ViaDisplayScenic.Gcs.Utils.add_to_ip_address_last_byte(state.host_ip, value_to_add)
 
-        GenServer.cast(self(), {:realflight_ip_address_updated, ip_address})
+        GenServer.cast(self(), {Groups.realflight_ip_address(), ip_address})
 
       true ->
         :ok

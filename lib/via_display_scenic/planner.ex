@@ -5,6 +5,7 @@ defmodule ViaDisplayScenic.Planner do
 
   @impl Scenic.Scene
   def init(args, opts) do
+    Logger.debug("Planner.init self: #{inspect(self())}")
     Logger.debug("Planner.init opts: #{inspect(opts)}")
     Logger.debug("Planner args: #{inspect(args)}")
     viewport = opts[:viewport]
