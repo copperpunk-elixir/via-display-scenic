@@ -22,7 +22,8 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     Logger.debug("Gcs.args: #{inspect(Keyword.drop(args, [:gcs_state]))}")
     viewport = opts[:viewport]
 
-    {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
+    # {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
+    {vp_width, vp_height} = {800, 480}
 
     # col = vp_width / 12
     label_value_width = 125
@@ -333,9 +334,10 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       :erlang.send_after(1000, self(), :request_realflight_ip_address)
     end
 
-    :erlang.send_after(1000, self(), :request_host_ip_address)
+    :erlang.send_after(1200, self(), :request_host_ip_address)
 
-    {:ok, state, push: graph}
+    # , push: graph}
+    {:ok, state}
   end
 
   @impl Scenic.Scene
@@ -362,6 +364,13 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     Logger.debug("request host ip")
 
     ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {:get_host_ip_address, self()}, self())
+
+    ViaUtils.Comms.send_local_msg_to_group(
+      __MODULE__,
+      :load_gcs,
+      :load_gcs,
+      self()
+    )
 
     {:noreply, state}
   end

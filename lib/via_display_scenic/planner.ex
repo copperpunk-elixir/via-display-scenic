@@ -10,8 +10,8 @@ defmodule ViaDisplayScenic.Planner do
     Logger.debug("Planner args: #{inspect(args)}")
     viewport = opts[:viewport]
 
-    {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
-
+    # {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
+{vp_width, vp_height} = {800,480}
     go_to_gcs_width = 80
     go_to_gcs_height = 60
 
@@ -40,7 +40,7 @@ defmodule ViaDisplayScenic.Planner do
       args: Keyword.drop(args, [:planner_state])
     }
 
-    {:ok, state, push: graph}
+    {:ok, state}#, push: graph}
   end
 
   @impl Scenic.Scene
