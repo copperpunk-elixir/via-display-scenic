@@ -1,4 +1,4 @@
-defmodule ViaDisplayScenic.Gcs.Utils do
+defmodule ViaDisplayScenic.Utils do
   require Logger
   import Scenic.Primitives
   import Scenic.Components
@@ -209,7 +209,7 @@ defmodule ViaDisplayScenic.Gcs.Utils do
   # = :math.pi/2 + :math.atan(ratio)
   @interior_angle 2.677945
   @ratio_sq 4
-  @spec draw_arrow(map(), float(), float(), float(), float(), atom(), boolean(), atom()) ::
+  @spec draw_arrow(map(), number(), number(), number(), integer(), atom(), boolean(), atom()) ::
           Scenic.Graph.t()
   def draw_arrow(graph, x, y, heading, size, id, is_new \\ false, fill \\ :yellow) do
     # Center of triangle at X/Y

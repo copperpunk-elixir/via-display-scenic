@@ -50,7 +50,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       |> rect({vp_width, vp_height})
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_columns_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
         width: label_value_width,
         height: 4 * label_value_height,
         offset_x: offset_x_origin,
@@ -62,7 +62,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_columns_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
         width: label_value_width,
         height: 3 * label_value_height,
         offset_x: offset_x_origin,
@@ -74,7 +74,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, _offset_x, _offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_columns_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
         width: label_value_width,
         height: 3 * label_value_height,
         offset_x: offset_x_origin,
@@ -88,7 +88,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     goals_offset_x = 60 + 2 * label_value_width
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_rows_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
         id: {:goals, 4},
         width: goals_width,
         height: 2 * goals_height,
@@ -101,7 +101,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_rows_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
         id: {:goals, 3},
         width: goals_width,
         height: 2 * goals_height,
@@ -114,7 +114,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_rows_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
         id: {:goals, 2},
         width: goals_width,
         height: 2 * goals_height,
@@ -127,7 +127,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_rows_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
         id: {:goals, 1},
         width: goals_width,
         height: 2 * goals_height,
@@ -149,7 +149,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     offset_y_bottom_row = offset_y
 
     {graph, offset_x, _offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_columns_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
         width: 100,
         width_text: ip_width,
         height: ip_height * 2,
@@ -163,7 +163,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       })
 
     {graph, offset_x_reset_est, offset_y} =
-      ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+      ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
         text: "Reset Estimation",
         id: :reset_estimation,
         theme: %{text: :black, background: :white, active: :grey, border: :white},
@@ -179,7 +179,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     graph =
       if Keyword.get(args, :realflight_sim, false) do
         {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
             text: "+",
             id: {:modify_realflight_ip, 1},
             theme: %{text: :white, background: :green, active: :grey, border: :white},
@@ -191,7 +191,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           })
 
         {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
             text: "-",
             id: {:modify_realflight_ip, -1},
             theme: %{text: :white, background: :red, active: :grey, border: :white},
@@ -203,7 +203,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           })
 
         {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
             text: "Set IP",
             id: :set_realflight_ip,
             theme: %{text: :white, background: :blue, active: :grey, border: :white},
@@ -215,7 +215,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           })
 
         {graph, _offset_x, _offset_y} =
-          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
             text: "Planner",
             id: :go_to_planner,
             theme: %{text: :white, background: :blue, active: :grey, border: :white},
@@ -229,7 +229,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
         graph
       else
         {graph, _offset_x, _offset_y} =
-          ViaDisplayScenic.Gcs.Utils.add_button_to_graph(graph, %{
+          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
             text: "Planner",
             id: :go_to_planner,
             theme: %{text: :white, background: :blue, active: :grey, border: :white},
@@ -247,7 +247,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     # cluster_status_offset_y = vp_height - cluster_status_side - 20
 
     # {graph, _offset_x, _offset_y} =
-    #   ViaDisplayScenic.Gcs.Utils.add_rectangle_to_graph(graph, %{
+    #   ViaDisplayScenic.Utils.add_rectangle_to_graph(graph, %{
     #     id: :cluster_status,
     #     width: cluster_status_side,
     #     height: cluster_status_side,
@@ -258,7 +258,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
 
     # # Save Log
     # {graph, _offset_x, button_offset_y} =
-    #   ViaDisplayScenic.Gcs.Utils.add_save_log_to_graph(graph, %{
+    #   ViaDisplayScenic.Utils.add_save_log_to_graph(graph, %{
     #     button_id: :save_log,
     #     text_id: :save_log_filename,
     #     button_width: 100,
@@ -270,7 +270,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     #   })
 
     # {graph, _offset_x, _offset_y} =
-    #   ViaDisplayScenic.Gcs.Utils.add_peripheral_control_to_graph(graph, %{
+    #   ViaDisplayScenic.Utils.add_peripheral_control_to_graph(graph, %{
     #     allow_id: {:peri_ctrl, :allow},
     #     deny_id: {:peri_ctrl, :deny},
     #     button_width: 150,
@@ -290,7 +290,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     #     # battery_str = Atom.to_string(battery)
     #     labels = [battery <> " V", battery <> " I", battery <> " mAh"]
 
-    #     ViaDisplayScenic.Gcs.Utils.add_rows_to_graph(graph, %{
+    #     ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
     #       id: {:battery, battery},
     #       width: battery_width,
     #       height: 2 * battery_height,
@@ -310,7 +310,6 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     ViaUtils.Comms.join_group(__MODULE__, Groups.current_pilot_control_level_and_commands())
     ViaUtils.Comms.join_group(__MODULE__, Groups.host_ip_address())
     ViaUtils.Comms.join_group(__MODULE__, Groups.realflight_ip_address())
-
     previous_state = args[:gcs_state]
 
     state =
@@ -321,7 +320,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           args: Keyword.drop(args, [:gcs_state]),
           host_ip: nil,
           realflight_ip: nil,
-          save_log_file: ""
+          save_log_file: "",
         }
       else
         Map.put(previous_state, :graph, graph)
@@ -638,14 +637,14 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
         host_ip = state.host_ip
 
         ip_address =
-          ViaDisplayScenic.Gcs.Utils.add_to_ip_address_last_byte(
+          ViaDisplayScenic.Utils.add_to_ip_address_last_byte(
             state.realflight_ip,
             value_to_add
           )
 
         ip_address =
           if ip_address == host_ip do
-            ViaDisplayScenic.Gcs.Utils.add_to_ip_address_last_byte(host_ip, value_to_add)
+            ViaDisplayScenic.Utils.add_to_ip_address_last_byte(host_ip, value_to_add)
           else
             ip_address
           end
@@ -654,7 +653,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
 
       !is_nil(state.host_ip) ->
         ip_address =
-          ViaDisplayScenic.Gcs.Utils.add_to_ip_address_last_byte(state.host_ip, value_to_add)
+          ViaDisplayScenic.Utils.add_to_ip_address_last_byte(state.host_ip, value_to_add)
 
         GenServer.cast(self(), {Groups.realflight_ip_address(), ip_address})
 
