@@ -11,7 +11,7 @@ defmodule ViaDisplayScenic.Operator do
   @impl GenServer
   def init(_) do
     state = %{
-      mission: nil,
+      mission: nil
     }
 
     ViaUtils.Comms.Supervisor.start_operator(__MODULE__)
@@ -19,12 +19,13 @@ defmodule ViaDisplayScenic.Operator do
     ViaUtils.Comms.join_group(__MODULE__, Groups.clear_mission())
     ViaUtils.Comms.join_group(__MODULE__, Groups.display_mission())
 
+    Logger.warn("Disply OP PID: #{inspect(self())}")
     {:ok, state}
   end
 
   @impl GenServer
   def handle_cast({Groups.display_mission(), mission}, state) do
-    Logger.debug("#{__MODULE__} display mission: #{inspect(mission)}")
+    # Logger.debug("#{__MODULE__} display mission: #{inspect(mission)}")
     {:noreply, %{state | mission: mission}}
   end
 

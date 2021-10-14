@@ -52,6 +52,8 @@ defmodule ViaDisplayScenic.Planner.Path.Dubins do
 
   @spec calculate_lat_lon_bounding_box(list(), map(), boolean()) :: tuple()
   def calculate_lat_lon_bounding_box(waypoints, vehicle_position, degrees \\ false) do
+    Logger.debug("cllbb wps: #{inspect(waypoints)}")
+    Logger.debug("cllbb pos: #{inspect(vehicle_position)}")
     {min_lat, max_lat, min_lon, max_lon} =
       if degrees == true do
         {90, -90, 180, -180}
@@ -62,7 +64,7 @@ defmodule ViaDisplayScenic.Planner.Path.Dubins do
     # waypoints = Map.get(mission, :waypoints, [])
 
     all_coords =
-      if vehicle_position == nil do
+      if Enum.empty?(vehicle_position) do
         waypoints
       else
         [vehicle_position] ++ waypoints

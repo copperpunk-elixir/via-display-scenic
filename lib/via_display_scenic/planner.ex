@@ -3,11 +3,15 @@ defmodule ViaDisplayScenic.Planner do
   require Logger
   require ViaUtils.Shared.Groups, as: Groups
   require ViaNavigation.Dubins.Shared.MissionValues, as: MV
+  require ViaUtils.Shared.ValueNames, as: SVN
   import Scenic.Primitives
 
   @impl Scenic.Scene
+
+  @draw_vehicle_loop :draw_vehicle_loop
+  @draw_vehicle_interval_ms 100
   def init(args, opts) do
-    Logger.debug("Planner.init self: #{inspect(self())}")
+    Logger.debug("Planner PID: #{inspect(self())}")
     Logger.debug("Planner.init opts: #{inspect(opts)}")
     Logger.debug("Planner args: #{inspect(args)}")
     viewport = opts[:viewport]
@@ -64,9 +68,11 @@ defmodule ViaDisplayScenic.Planner do
       vp_height: vp_height,
       margin: margin,
       args: Keyword.drop(args, [:planner_state]),
-      mission: nil,
+      mission: mission,
       origin: nil,
-      vehicle_position: nil
+      vehicle_position_rrm: %{},
+      vehicle_velocity_mps: %{},
+      vehicle_attitude_rad: %{}
     }
 
     state = if !is_nil(mission), do: display_mission(state, mission), else: state
@@ -74,7 +80,10 @@ defmodule ViaDisplayScenic.Planner do
     ViaUtils.Comms.start_operator(__MODULE__)
     ViaUtils.Comms.join_group(__MODULE__, Groups.clear_mission())
     ViaUtils.Comms.join_group(__MODULE__, Groups.display_mission())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude())
 
+    ViaUtils.Process.start_loop(self(), @draw_vehicle_interval_ms, @draw_vehicle_loop)
     {:ok, state, push: state.graph}
   end
 
@@ -85,29 +94,93 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl true
+  def handle_cast({Groups.estimation_attitude(), attitude_rad}, state) do
+    {:noreply,
+     %{
+       state
+       | vehicle_attitude_rad: attitude_rad
+     }}
+  end
+
+  @impl true
+  def handle_cast({Groups.estimation_position_velocity(), position_rrm, velocity_mps}, state) do
+    {:noreply,
+     %{
+       state
+       | vehicle_position_rrm: position_rrm,
+         vehicle_velocity_mps: velocity_mps
+     }}
+  end
+
+  @impl true
   def handle_cast({Groups.display_mission(), mission}, state) do
-    Logger.debug("planner display mission: #{inspect(mission)}")
+    # Logger.debug("planner display mission: #{inspect(mission)}")
     state = display_mission(state, mission)
     {:noreply, state, push: state.graph}
   end
 
+  @impl true
+  def handle_info(@draw_vehicle_loop, state) do
+    %{
+      vehicle_position_rrm: position_rrm,
+      vehicle_velocity_mps: velocity_mps,
+      vehicle_attitude_rad: attitude_rad,
+      origin: origin,
+      vp_width: vp_width,
+      vp_height: vp_height,
+      margin: margin,
+      graph: graph
+    } = state
+
+    origin =
+      cond do
+        Enum.empty?(position_rrm) ->
+          origin
+
+        is_nil(origin) ->
+          bounding_box =
+            ViaDisplayScenic.Planner.Path.Dubins.calculate_lat_lon_bounding_box([], position_rrm)
+
+          ViaDisplayScenic.Planner.Path.Dubins.calculate_origin(
+            bounding_box,
+            vp_width,
+            vp_height,
+            margin
+          )
+
+        true ->
+          origin
+      end
+
+    graph =
+      if !Enum.empty?(attitude_rad) and !Enum.empty?(position_rrm) and !Enum.empty?(velocity_mps) do
+        # Logger.debug("draw veh")
+        draw_vehicle(graph, position_rrm, velocity_mps, attitude_rad, origin, vp_height)
+      else
+        # Logger.debug("draw empty")
+        graph
+      end
+
+    {:noreply, %{state | graph: graph, origin: origin}, push: graph}
+  end
+
+  @spec display_mission(map(), any()) :: map()
   def display_mission(state, mission) do
-    Logger.debug("display mission: #{inspect(mission)}")
-    Logger.debug("Planner display mission: #{inspect(mission)}")
-    %{MV.waypoints() => waypoints, MV.turn_rate_rps() => turn_rate_rps} = mission
+    # Logger.debug("Planner display mission: #{inspect(mission)}")
+    # %{MV.waypoints() => waypoints, MV.turn_rate_rps() => turn_rate_rps} = mission
 
-    {config_points, path_distance} =
-      ViaNavigation.Dubins.Utils.config_points_from_waypoints(
-        waypoints,
-        turn_rate_rps
-      )
+    # {config_points, path_distance} =
+    #   ViaNavigation.Dubins.Utils.config_points_from_waypoints(
+    #     waypoints,
+    #     turn_rate_rps
+    #   )
 
-    Logger.debug("Distance: #{path_distance}")
-    Logger.debug("Config points: #{inspect(config_points)}")
+    # Logger.debug("Distance: #{path_distance}")
+    # Logger.debug("Config points: #{inspect(config_points)}")
 
     %{
       graph: graph,
-      vehicle_position: vehicle_position,
+      vehicle_position_rrm: vehicle_position_rrm,
       vp_width: vp_width,
       vp_height: vp_height,
       margin: margin
@@ -117,14 +190,34 @@ defmodule ViaDisplayScenic.Planner do
       ViaDisplayScenic.Planner.Path.Dubins.add_mission_to_graph(
         graph,
         mission,
-        vehicle_position,
+        vehicle_position_rrm,
         vp_width,
         vp_height,
         margin
       )
 
-    Logger.debug("graph: #{inspect(graph)}")
+    # Logger.debug("graph: #{inspect(graph)}")
     %{state | mission: mission, origin: origin, graph: graph}
+  end
+
+  @spec draw_vehicle(map(), map(), map(), map(), struct(), float()) :: map()
+  def draw_vehicle(graph, position_rrm, velocity_mps, attitude_rad, origin, vp_height) do
+    %{SVN.latitude_rad() => lat, SVN.longitude_rad() => lon} = position_rrm
+    %{SVN.groundspeed_mps() => speed} = velocity_mps
+    %{SVN.yaw_rad() => yaw} = attitude_rad
+    {y_plot, x_plot} = ViaDisplayScenic.Planner.Origin.get_xy(origin, lat, lon)
+    # Logger.debug("xy_plot: #{x_plot}/#{y_plot}")
+    vehicle_size = ceil(speed / 10) + 10
+
+    Scenic.Graph.delete(graph, :vehicle)
+    |> ViaDisplayScenic.Utils.draw_arrow(
+      x_plot,
+      vp_height - y_plot,
+      yaw,
+      vehicle_size,
+      :vehicle,
+      true
+    )
   end
 
   @impl Scenic.Scene
@@ -156,6 +249,7 @@ defmodule ViaDisplayScenic.Planner do
 
     # Logger.info("mission: #{inspect(mission)}")
     ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {Groups.display_mission(), mission}, nil)
+    ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {Groups.load_mission(), mission}, self())
     # {:cont, event, state}
     {:noreply, state}
   end
