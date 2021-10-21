@@ -3,16 +3,18 @@ defmodule ViaDisplayScenic.Planner.Path.Dubins do
   require Logger
   require ViaUtils.Shared.ValueNames, as: SVN
   require ViaNavigation.Dubins.Shared.MissionValues, as: MV
+  require ViaNavigation.Dubins.Shared.ModelSpec, as: MS
 
   import Scenic.Primitives
 
   @primitive_id :mission_primitives
   @orbit_id :orbit_primitive
 
-  @spec add_mission_to_graph(map(), struct(), struct(), integer(), integer(), integer()) ::
+  @spec add_mission_to_graph(map(), struct(), struct(), integer(), float(), float()) ::
           tuple()
   def add_mission_to_graph(graph, mission, vehicle_position, width, height, margin) do
-    %{MV.waypoints() => waypoints, MV.turn_rate_rps() => turn_rate_rps} = mission
+    %{MV.waypoints() => waypoints, MV.model_spec() => model_spec} = mission
+    %{MS.turn_rate_rps() => turn_rate_rps} = model_spec
 
     bounding_box = calculate_lat_lon_bounding_box(waypoints, vehicle_position)
     origin = calculate_origin(bounding_box, width, height, margin)
@@ -54,6 +56,7 @@ defmodule ViaDisplayScenic.Planner.Path.Dubins do
   def calculate_lat_lon_bounding_box(waypoints, vehicle_position, degrees \\ false) do
     Logger.debug("cllbb wps: #{inspect(waypoints)}")
     Logger.debug("cllbb pos: #{inspect(vehicle_position)}")
+
     {min_lat, max_lat, min_lon, max_lon} =
       if degrees == true do
         {90, -90, 180, -180}
