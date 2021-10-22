@@ -248,8 +248,8 @@ defmodule ViaDisplayScenic.Planner do
       end
 
     # Logger.info("mission: #{inspect(mission)}")
-    ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {Groups.display_mission(), mission}, nil)
-    ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {Groups.load_mission(), mission}, self())
+    ViaUtils.Comms.cast_local_msg_to_group(__MODULE__, {Groups.display_mission(), mission}, nil)
+    ViaUtils.Comms.cast_local_msg_to_group(__MODULE__, {Groups.load_mission(), mission}, self())
     # {:cont, event, state}
     {:noreply, state}
   end

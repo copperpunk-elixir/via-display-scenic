@@ -53,7 +53,7 @@ defmodule ViaDisplayScenic.Dubins.DisplayMissionTest do
 
     Logger.debug("send display_mission message")
 
-    ViaUtils.Comms.send_local_msg_to_group(
+    ViaUtils.Comms.cast_local_msg_to_group(
       __MODULE__,
       {Groups.display_mission(), mission},
       self()

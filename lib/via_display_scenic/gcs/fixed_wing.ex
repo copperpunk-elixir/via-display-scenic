@@ -347,7 +347,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   def handle_info(:request_realflight_ip_address, state) do
     Logger.debug("request rf ip")
 
-    ViaUtils.Comms.send_local_msg_to_group(
+    ViaUtils.Comms.cast_local_msg_to_group(
       __MODULE__,
       {Groups.get_realflight_ip_address(), self()},
       self()
@@ -360,7 +360,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   def handle_info(:request_host_ip_address, state) do
     Logger.debug("request host ip")
 
-    ViaUtils.Comms.send_local_msg_to_group(__MODULE__, {:get_host_ip_address, self()}, self())
+    ViaUtils.Comms.cast_local_msg_to_group(__MODULE__, {:get_host_ip_address, self()}, self())
 
     {:noreply, state}
   end
@@ -669,7 +669,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   def filter_event({:click, :set_realflight_ip} = event, _from, state) do
     Logger.debug("Set IP #{state.realflight_ip}")
 
-    ViaUtils.Comms.send_local_msg_to_group(
+    ViaUtils.Comms.cast_local_msg_to_group(
       __MODULE__,
       {:set_realflight_ip_address, state.realflight_ip},
       self()
