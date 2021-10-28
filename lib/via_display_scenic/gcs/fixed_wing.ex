@@ -320,7 +320,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           args: Keyword.drop(args, [:gcs_state]),
           host_ip: nil,
           realflight_ip: nil,
-          save_log_file: "",
+          save_log_file: ""
         }
       else
         Map.put(previous_state, :graph, graph)
@@ -369,7 +369,13 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   def handle_cast({Groups.host_ip_address(), ip_address}, state) do
     Logger.warn("host ip updated: #{inspect(ip_address)}")
 
-    graph = Scenic.Graph.modify(state.graph, :host_ip, &text(&1, ip_address))
+    graph =
+      if is_binary(ip_address) do
+        Scenic.Graph.modify(state.graph, :host_ip, &text(&1, ip_address))
+      else
+        state.graph
+      end
+
     {:noreply, %{state | graph: graph, host_ip: ip_address}, push: graph}
   end
 
