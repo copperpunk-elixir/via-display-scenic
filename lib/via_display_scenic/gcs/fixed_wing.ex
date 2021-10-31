@@ -134,7 +134,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
         offset_x: goals_offset_x,
         offset_y: offset_y,
         spacer_y: spacer_y,
-        labels: ["thrust", "rollrate", "pitchrate", "yawrate"],
+        labels: ["throttle", "rollrate", "pitchrate", "yawrate"],
         ids: [:throttle_cmd, :rollrate_cmd, :pitchrate_cmd, :yawrate_cmd],
         font_size: @font_size
       })
@@ -469,7 +469,11 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
         yawrate =
           Map.get(cmds, :yawrate_rps, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
 
-        throttle = (Map.get(cmds, :throttle_scaled, 0) * 100) |> ViaUtils.Format.eftb(0)
+        throttle =
+          Map.get(cmds, :throttle_scaled, 0)
+          |> ViaUtils.Math.get_one_sided_from_two_sided()
+          |> Kernel.*(100)
+          |> ViaUtils.Format.eftb(0)
 
         graph
         |> Scenic.Graph.modify(:rollrate_cmd, &text(&1, rollrate <> @dps))
