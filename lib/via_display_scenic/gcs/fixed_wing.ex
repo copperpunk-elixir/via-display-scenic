@@ -2,11 +2,13 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   use Scenic.Scene
   require Logger
   require ViaUtils.Shared.Groups, as: Groups
+  require ViaUtils.Shared.ValueNames, as: SVN
   require ViaUtils.Shared.ControlTypes, as: CT
+  require ViaTelemetry.Ubx.ClassDefs, as: ClassDefs
+  require ViaTelemetry.Ubx.VehicleState.Attitude, as: Attitude
+  require ViaTelemetry.Ubx.VehicleState.PositionVelocity, as: PositionVelocity
 
   import Scenic.Primitives
-  @font_size 19
-  @battery_font_size 20
   @degrees "°"
   @dps "°/s"
   @meters "m"
@@ -23,291 +25,15 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
     viewport = opts[:viewport]
 
     {:ok, %Scenic.ViewPort.Status{size: {vp_width, vp_height}}} = Scenic.ViewPort.info(viewport)
-
+    graph = ViaDisplayScenic.Gcs.FixedWing.Utils.build_graph(vp_width, vp_height, args)
     # col = vp_width / 12
-    label_value_width = 125
-    label_value_height = 40
-    goals_width = 400
-    goals_height = 40
-    battery_width = 400
-    battery_height = 40
-    ip_width = 100
-    ip_height = 30
-    modify_ip_width = 50
-    modify_ip_height = ip_height
-    reset_estimation_width = 160
-    reset_estimation_height = ip_height - 5
-    go_to_planner_width = 80
-    go_to_planner_height = ip_height * 2
-    cluster_status_side = 100
-    # build the graph
-    offset_x_origin = 10
-    offset_y_origin = 10
-    spacer_y = 20
-
-    graph =
-      Scenic.Graph.build()
-      |> rect({vp_width, vp_height})
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
-        width: label_value_width,
-        height: 4 * label_value_height,
-        offset_x: offset_x_origin,
-        offset_y: offset_y_origin,
-        spacer_y: spacer_y,
-        labels: ["latitude", "longitude", "altitude", "AGL"],
-        ids: [:lat, :lon, :alt, :agl],
-        font_size: @font_size
-      })
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
-        width: label_value_width,
-        height: 3 * label_value_height,
-        offset_x: offset_x_origin,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ["airspeed", "speed", "course"],
-        ids: [:airspeed, :speed, :course],
-        font_size: @font_size
-      })
-
-    {graph, _offset_x, _offset_y} =
-      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
-        width: label_value_width,
-        height: 3 * label_value_height,
-        offset_x: offset_x_origin,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ["roll", "pitch", "yaw"],
-        ids: [:roll, :pitch, :yaw],
-        font_size: @font_size
-      })
-
-    goals_offset_x = 60 + 2 * label_value_width
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
-        id: {:goals, 4},
-        width: goals_width,
-        height: 2 * goals_height,
-        offset_x: goals_offset_x,
-        offset_y: offset_y_origin,
-        spacer_y: spacer_y,
-        labels: ["speed", "course rate", "altitude rate", "sideslip"],
-        ids: [:speed_4_cmd, :course_rate_cmd, :altitude_rate_cmd, :sideslip_4_cmd],
-        font_size: @font_size
-      })
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
-        id: {:goals, 3},
-        width: goals_width,
-        height: 2 * goals_height,
-        offset_x: goals_offset_x,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ["speed", "course", "altitude", "sideslip"],
-        ids: [:speed_3_cmd, :course_cmd, :altitude_cmd, :sideslip_3_cmd],
-        font_size: @font_size
-      })
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
-        id: {:goals, 2},
-        width: goals_width,
-        height: 2 * goals_height,
-        offset_x: goals_offset_x,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ["thrust", "roll", "pitch", "yaw"],
-        ids: [:thrust_cmd, :roll_cmd, :pitch_cmd, :deltayaw_cmd],
-        font_size: @font_size
-      })
-
-    {graph, _offset_x, offset_y} =
-      ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
-        id: {:goals, 1},
-        width: goals_width,
-        height: 2 * goals_height,
-        offset_x: goals_offset_x,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ["throttle", "rollrate", "pitchrate", "yawrate"],
-        ids: [:throttle_cmd, :rollrate_cmd, :pitchrate_cmd, :yawrate_cmd],
-        font_size: @font_size
-      })
-
-    {ip_labels, ip_text, ip_ids} =
-      if Keyword.get(args, :realflight_sim, false) do
-        {["Host IP", "RealFlight IP"], ["searching...", "waiting..."], [:host_ip, :realflight_ip]}
-      else
-        {["Host IP"], ["searching..."], [:host_ip]}
-      end
-
-    offset_y_bottom_row = offset_y
-
-    {graph, offset_x, _offset_y} =
-      ViaDisplayScenic.Utils.add_columns_to_graph(graph, %{
-        width: 100,
-        width_text: ip_width,
-        height: ip_height * 2,
-        offset_x: goals_offset_x,
-        offset_y: offset_y,
-        spacer_y: spacer_y,
-        labels: ip_labels,
-        text: ip_text,
-        ids: ip_ids,
-        font_size: @font_size
-      })
-
-    {graph, offset_x_reset_est, offset_y} =
-      ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-        text: "Reset Estimation",
-        id: :reset_estimation,
-        theme: %{text: :black, background: :white, active: :grey, border: :white},
-        width: reset_estimation_width,
-        height: reset_estimation_height,
-        font_size: @font_size,
-        offset_x: offset_x + 30,
-        offset_y: offset_y
-      })
-
-    offset_y = offset_y + 5
-
-    graph =
-      if Keyword.get(args, :realflight_sim, false) do
-        {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-            text: "+",
-            id: {:modify_realflight_ip, 1},
-            theme: %{text: :white, background: :green, active: :grey, border: :white},
-            width: modify_ip_width,
-            height: modify_ip_height,
-            font_size: @font_size + 5,
-            offset_x: offset_x + 30,
-            offset_y: offset_y
-          })
-
-        {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-            text: "-",
-            id: {:modify_realflight_ip, -1},
-            theme: %{text: :white, background: :red, active: :grey, border: :white},
-            width: modify_ip_width,
-            height: modify_ip_height,
-            font_size: @font_size + 5,
-            offset_x: offset_x + 5,
-            offset_y: offset_y
-          })
-
-        {graph, offset_x, _offset_y} =
-          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-            text: "Set IP",
-            id: :set_realflight_ip,
-            theme: %{text: :white, background: :blue, active: :grey, border: :white},
-            width: modify_ip_width,
-            height: modify_ip_height,
-            font_size: @font_size,
-            offset_x: offset_x + 5,
-            offset_y: offset_y
-          })
-
-        {graph, _offset_x, _offset_y} =
-          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-            text: "Planner",
-            id: :go_to_planner,
-            theme: %{text: :white, background: :blue, active: :grey, border: :white},
-            width: go_to_planner_width,
-            height: go_to_planner_height,
-            font_size: @font_size,
-            offset_x: offset_x + 5,
-            offset_y: offset_y_bottom_row
-          })
-
-        graph
-      else
-        {graph, _offset_x, _offset_y} =
-          ViaDisplayScenic.Utils.add_button_to_graph(graph, %{
-            text: "Planner",
-            id: :go_to_planner,
-            theme: %{text: :white, background: :blue, active: :grey, border: :white},
-            width: go_to_planner_width,
-            height: go_to_planner_height,
-            font_size: @font_size,
-            offset_x: offset_x_reset_est + 5,
-            offset_y: offset_y_bottom_row
-          })
-
-        graph
-      end
-
-    # cluster_status_offset_x = vp_width - cluster_status_side - 40
-    # cluster_status_offset_y = vp_height - cluster_status_side - 20
-
-    # {graph, _offset_x, _offset_y} =
-    #   ViaDisplayScenic.Utils.add_rectangle_to_graph(graph, %{
-    #     id: :cluster_status,
-    #     width: cluster_status_side,
-    #     height: cluster_status_side,
-    #     offset_x: cluster_status_offset_x,
-    #     offset_y: cluster_status_offset_y,
-    #     fill: :red
-    #   })
-
-    # # Save Log
-    # {graph, _offset_x, button_offset_y} =
-    #   ViaDisplayScenic.Utils.add_save_log_to_graph(graph, %{
-    #     button_id: :save_log,
-    #     text_id: :save_log_filename,
-    #     button_width: 100,
-    #     button_height: 35,
-    #     offset_x: 10,
-    #     offset_y: vp_height - 100,
-    #     font_size: @font_size,
-    #     text_width: 400
-    #   })
-
-    # {graph, _offset_x, _offset_y} =
-    #   ViaDisplayScenic.Utils.add_peripheral_control_to_graph(graph, %{
-    #     allow_id: {:peri_ctrl, :allow},
-    #     deny_id: {:peri_ctrl, :deny},
-    #     button_width: 150,
-    #     button_height: 35,
-    #     offset_x: 10,
-    #     offset_y: button_offset_y + 10,
-    #     font_size: @font_size,
-    #     text_width: 400
-    #   })
-
-    # batteries = ["cluster", "motor"]
-
-    # {graph, _offset_x, _offset_y} =
-    #   Enum.reduce(batteries, {graph, goals_offset_x, offset_y}, fn battery,
-    #                                                                {graph, off_x, off_y} ->
-    #     ids = [{battery, :V}, {battery, :I}, {battery, :mAh}]
-    #     # battery_str = Atom.to_string(battery)
-    #     labels = [battery <> " V", battery <> " I", battery <> " mAh"]
-
-    #     ViaDisplayScenic.Utils.add_rows_to_graph(graph, %{
-    #       id: {:battery, battery},
-    #       width: battery_width,
-    #       height: 2 * battery_height,
-    #       offset_x: off_x,
-    #       offset_y: off_y,
-    #       spacer_y: spacer_y,
-    #       labels: labels,
-    #       ids: ids,
-    #       font_size: @battery_font_size
-    #     })
-    #   end)
-
     # subscribe to the simulated temperature sensor
     ViaUtils.Comms.start_operator(__MODULE__)
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.current_pilot_control_level_and_commands())
+    # ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude_attrate_val())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.virtual_telemetry())
+
+    # ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity_val())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.current_pcl_and_all_commands_val())
     ViaUtils.Comms.join_group(__MODULE__, Groups.host_ip_address())
     ViaUtils.Comms.join_group(__MODULE__, Groups.realflight_ip_address())
     previous_state = args[:gcs_state]
@@ -320,7 +46,12 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           args: Keyword.drop(args, [:gcs_state]),
           host_ip: nil,
           realflight_ip: nil,
-          save_log_file: ""
+          save_log_file: "",
+          ubx: UbxInterpreter.new(),
+          ubx_message_functions: %{
+            Attitude => :update_attitude_attrate,
+            PositionVelocity => :update_position_velocity
+          }
         }
       else
         Map.put(previous_state, :graph, graph)
@@ -366,6 +97,49 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   end
 
   @impl true
+  def handle_info({:circuits_uart, _port, data}, state) do
+    # Logger.debug("#{__MODULE__} rx'd data: #{data}")
+    state = check_for_new_messages_and_process(:binary.bin_to_list(data), state)
+    {:noreply, state, push: state.graph}
+  end
+
+  @spec check_for_new_messages_and_process(list(), map()) :: map()
+  def check_for_new_messages_and_process(data, state) do
+    %{ubx: ubx, ubx_message_functions: message_functions} = state
+    {ubx, payload} = UbxInterpreter.check_for_new_message(ubx, data)
+
+    if Enum.empty?(payload) do
+      state
+    else
+      # Logger.debug("payload: #{inspect(payload)}")
+      %{msg_class: msg_class, msg_id: msg_id} = ubx
+      # Logger.debug("msg class/id: #{msg_class}/#{msg_id}")
+      state =
+        case msg_class do
+          ClassDefs.vehicle_state() ->
+            # Logger.debug("msg_id: #{msg_id}")
+            msg_module = ViaTelemetry.Ubx.VehicleState.MsgIds.get_module_for_id(msg_id)
+            msg_fn = Map.get(message_functions, msg_module)
+
+            if is_nil(msg_fn) do
+              Logger.error("#{__MODULE__} #{msg_fn} not supported")
+              state
+            else
+              process_ubx_message(msg_module, payload, msg_fn, state)
+            end
+
+          _other ->
+            Logger.warn("Bad message class: #{msg_class}")
+            state
+        end
+
+      ubx = UbxInterpreter.clear(ubx)
+      state = %{state | ubx: ubx}
+      check_for_new_messages_and_process([], state)
+    end
+  end
+
+  @impl true
   def handle_cast({Groups.host_ip_address(), ip_address}, state) do
     Logger.warn("host ip updated: #{inspect(ip_address)}")
 
@@ -394,10 +168,23 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
   end
 
   # --------------------------------------------------------
+  def process_ubx_message(msg_module, payload, msg_fn, state) do
+    values =
+      UbxInterpreter.deconstruct_message_to_map(
+        msg_module.get_bytes(),
+        msg_module.get_multipliers(),
+        msg_module.get_keys(),
+        payload
+      )
+
+    # Logger.debug("{__MODULE__} Attitue vals: #{ViaUtils.Format.eftb_map(values, 4)}")
+    apply(__MODULE__, msg_fn, [values, state])
+  end
+
   # receive PV updates from the vehicle
-  @impl true
-  def handle_cast({Groups.estimation_attitude(), attitude}, state) do
-    # Logger.debug("position: #{ViaUtils.LatLonAlt.to_string(position)}")
+  def update_attitude_attrate(values, state) do
+    attitude = Map.take(values, [SVN.roll_rad(), SVN.pitch_rad(), SVN.yaw_rad()])
+    # Logger.debug("attitude: #{inspect(attitude)}")
     roll = Map.get(attitude, :roll_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(1)
     pitch = Map.get(attitude, :pitch_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(1)
 
@@ -413,28 +200,37 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       |> Scenic.Graph.modify(:pitch, &text(&1, pitch <> @degrees))
       |> Scenic.Graph.modify(:yaw, &text(&1, yaw <> @degrees))
 
-    {:noreply, %{state | graph: graph}, push: graph}
+    %{state | graph: graph}
   end
 
-  @impl true
-  def handle_cast({Groups.estimation_position_velocity(), position, velocity}, state) do
-    lat =
-      Map.get(position, :latitude_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(5)
+  def update_position_velocity(values, state) do
+    %{
+      SVN.latitude_rad() => latitude_rad,
+      SVN.longitude_rad() => longitude_rad,
+      SVN.altitude_m() => altitude_m,
+      SVN.agl_m() => agl_m,
+      SVN.airspeed_mps() => airspeed_mps,
+      SVN.v_north_mps() => v_north_mps,
+      SVN.v_east_mps() => v_east_mps
+    } = values
 
-    lon =
-      Map.get(position, :longitude_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(5)
+    {groundspeed_mps, course_rad} =
+      ViaUtils.Motion.get_speed_course_for_velocity(v_north_mps, v_east_mps, 0, 0)
 
-    alt = Map.get(position, :altitude_m, 0) |> ViaUtils.Format.eftb(2)
-    agl = Map.get(position, :agl_m, 0) |> ViaUtils.Format.eftb(2)
+    lat = latitude_rad |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(5)
+
+    lon = longitude_rad |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(5)
+
+    alt = altitude_m |> ViaUtils.Format.eftb(2)
+    agl = agl_m |> ViaUtils.Format.eftb(2)
 
     # v_down = ViaUtils.Format.eftb(velocity.down,1)
-    airspeed = Map.get(velocity, :airspeed_mps, 0) |> ViaUtils.Format.eftb(1)
+    airspeed = airspeed_mps |> ViaUtils.Format.eftb(1)
     # Logger.debug("disp #{airspeed}")
-    speed = Map.get(velocity, :groundspeed_mps, 0) |> ViaUtils.Format.eftb(1)
+    speed = groundspeed_mps |> ViaUtils.Format.eftb(1)
 
     course =
-      Map.get(velocity, :course_rad, 0)
-      |> ViaUtils.Math.constrain_angle_to_compass()
+      course_rad
       |> ViaUtils.Math.rad2deg()
       |> ViaUtils.Format.eftb(1)
 
@@ -447,18 +243,26 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       |> Scenic.Graph.modify(:speed, &text(&1, speed <> @mps))
       |> Scenic.Graph.modify(:course, &text(&1, course <> @degrees))
 
-    {:noreply, %{state | graph: graph}, push: graph}
+    %{state | graph: graph}
   end
 
-  def handle_cast({Groups.current_pilot_control_level_and_commands(), pcl, all_cmds}, state) do
-    # Logger.debug("gcs rx #{pcl}/#{inspect(all_cmds)}")
+  def handle_cast({Groups.current_pcl_and_all_commands_val(), values}, state) do
+    Logger.debug("gcs rx pcl=#{values.pilot_control_level}:#{inspect(values)}")
+
+    %{
+      # SVN.rollrate_rps() => rollrate_rps,
+      # SVN.pitchrate_rps() => pitchrate_rps,
+      # SVN.yawrate_rps() => yawrate_rps,
+      SVN.pilot_control_level() => pcl
+    } = values
+
     graph = state.graph
 
     graph =
       if pcl < CT.pilot_control_level_1() do
         clear_text_values(graph, [:rollrate_cmd, :pitchrate_cmd, :yawrate_cmd, :throttle_cmd])
       else
-        cmds = Map.get(all_cmds, CT.pilot_control_level_1(), %{})
+        cmds = Map.get(values, CT.pilot_control_level_1(), %{})
 
         rollrate =
           Map.get(cmds, :rollrate_rps, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
@@ -486,7 +290,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       if pcl < CT.pilot_control_level_2() do
         clear_text_values(graph, [:roll_cmd, :pitch_cmd, :deltayaw_cmd, :thrust_cmd])
       else
-        cmds = Map.get(all_cmds, CT.pilot_control_level_2(), %{})
+        cmds = Map.get(values, CT.pilot_control_level_2(), %{})
 
         roll = Map.get(cmds, :roll_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
         pitch = Map.get(cmds, :pitch_rad, 0) |> ViaUtils.Math.rad2deg() |> ViaUtils.Format.eftb(0)
@@ -507,7 +311,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
       if pcl < CT.pilot_control_level_3() do
         clear_text_values(graph, [:speed_3_cmd, :course_cmd, :altitude_cmd, :sideslip_3_cmd])
       else
-        cmds = Map.get(all_cmds, CT.pilot_control_level_3(), %{})
+        cmds = Map.get(values, CT.pilot_control_level_3(), %{})
         speed = Map.get(cmds, :groundspeed_mps, 0) |> ViaUtils.Format.eftb(1)
 
         course =
@@ -534,7 +338,7 @@ defmodule ViaDisplayScenic.Gcs.FixedWing do
           :sideslip_4_cmd
         ])
       else
-        cmds = Map.get(all_cmds, CT.pilot_control_level_4(), %{})
+        cmds = Map.get(values, CT.pilot_control_level_4(), %{})
         speed = Map.get(cmds, :groundspeed_mps, 0) |> ViaUtils.Format.eftb(1)
 
         course_rate =

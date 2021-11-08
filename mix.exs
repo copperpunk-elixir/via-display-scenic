@@ -25,6 +25,9 @@ defmodule ViaDisplayScenic.MixProject do
     [
       {:via_utils, path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-utils"},
       {:via_navigation, path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-navigation"},
+      {:via_telemetry, path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-telemetry"},
+      {:ubx_interpreter,
+       path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/ubx-interpreter"},
 
       # Scenic dependencies
       {:scenic, "~> 0.10.5"},

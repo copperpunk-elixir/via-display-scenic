@@ -80,8 +80,8 @@ defmodule ViaDisplayScenic.Planner do
     ViaUtils.Comms.start_operator(__MODULE__)
     ViaUtils.Comms.join_group(__MODULE__, Groups.clear_mission())
     ViaUtils.Comms.join_group(__MODULE__, Groups.display_mission())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity_val())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude_attrate_val())
 
     ViaUtils.Process.start_loop(self(), @draw_vehicle_interval_ms, @draw_vehicle_loop)
     {:ok, state, push: state.graph}
@@ -94,7 +94,9 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl true
-  def handle_cast({Groups.estimation_attitude(), attitude_rad}, state) do
+  def handle_cast({Groups.estimation_attitude_attrate_val(), values}, state) do
+    %{SVN.attitude_rad() => attitude_rad} = values
+
     {:noreply,
      %{
        state
@@ -103,7 +105,9 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl true
-  def handle_cast({Groups.estimation_position_velocity(), position_rrm, velocity_mps}, state) do
+  def handle_cast({Groups.estimation_position_velocity_val(), values}, state) do
+    %{SVN.position_rrm() => position_rrm, SVN.velocity_mps() => velocity_mps} = values
+
     {:noreply,
      %{
        state
