@@ -28,7 +28,7 @@ defmodule ViaDisplayScenic.MixProject do
       {:via_telemetry, path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/via-telemetry"},
       {:ubx_interpreter,
        path: "/home/ubuntu/Documents/Github/cp-elixir/libraries/ubx-interpreter"},
-
+      {:circuits_uart, "~> 1.4.2"},
       # Scenic dependencies
       {:scenic, "~> 0.10.5"},
       {:scenic_driver_glfw, "~> 0.10.1", targets: :host},

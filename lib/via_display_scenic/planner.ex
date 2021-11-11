@@ -2,7 +2,6 @@ defmodule ViaDisplayScenic.Planner do
   use Scenic.Scene
   require Logger
   require ViaUtils.Shared.Groups, as: Groups
-  require ViaNavigation.Dubins.Shared.MissionValues, as: MV
   require ViaUtils.Shared.ValueNames, as: SVN
   import Scenic.Primitives
 
@@ -71,8 +70,8 @@ defmodule ViaDisplayScenic.Planner do
       mission: mission,
       origin: nil,
       vehicle_position_rrm: %{},
-      vehicle_velocity_mps: %{},
-      vehicle_attitude_rad: %{}
+      vehicle_groundspeed_mps: nil,
+      vehicle_yaw_rad: nil
     }
 
     state = if !is_nil(mission), do: display_mission(state, mission), else: state
@@ -95,24 +94,27 @@ defmodule ViaDisplayScenic.Planner do
 
   @impl true
   def handle_cast({Groups.estimation_attitude_attrate_val(), values}, state) do
-    %{SVN.attitude_rad() => attitude_rad} = values
+    %{SVN.yaw_rad() => yaw_rad} = values
 
     {:noreply,
      %{
        state
-       | vehicle_attitude_rad: attitude_rad
+       | vehicle_yaw_rad: yaw_rad
      }}
   end
 
   @impl true
   def handle_cast({Groups.estimation_position_velocity_val(), values}, state) do
-    %{SVN.position_rrm() => position_rrm, SVN.velocity_mps() => velocity_mps} = values
+    %{
+      SVN.groundspeed_mps() => groundspeed_mps
+    } = values
 
     {:noreply,
      %{
        state
-       | vehicle_position_rrm: position_rrm,
-         vehicle_velocity_mps: velocity_mps
+       | vehicle_position_rrm:
+           Map.take(values, [SVN.latitude_rad(), SVN.longitude_rad(), SVN.altitude_m()]),
+         vehicle_groundspeed_mps: groundspeed_mps
      }}
   end
 
@@ -127,8 +129,8 @@ defmodule ViaDisplayScenic.Planner do
   def handle_info(@draw_vehicle_loop, state) do
     %{
       vehicle_position_rrm: position_rrm,
-      vehicle_velocity_mps: velocity_mps,
-      vehicle_attitude_rad: attitude_rad,
+      vehicle_groundspeed_mps: groundspeed_mps,
+      vehicle_yaw_rad: yaw_rad,
       origin: origin,
       vp_width: vp_width,
       vp_height: vp_height,
@@ -157,9 +159,9 @@ defmodule ViaDisplayScenic.Planner do
       end
 
     graph =
-      if !Enum.empty?(attitude_rad) and !Enum.empty?(position_rrm) and !Enum.empty?(velocity_mps) do
+      unless is_nil(yaw_rad) or is_nil(groundspeed_mps) or Enum.empty?(position_rrm) do
         # Logger.debug("draw veh")
-        draw_vehicle(graph, position_rrm, velocity_mps, attitude_rad, origin, vp_height)
+        draw_vehicle(graph, position_rrm, groundspeed_mps, yaw_rad, origin, vp_height)
       else
         # Logger.debug("draw empty")
         graph
@@ -204,20 +206,18 @@ defmodule ViaDisplayScenic.Planner do
     %{state | mission: mission, origin: origin, graph: graph}
   end
 
-  @spec draw_vehicle(map(), map(), map(), map(), struct(), float()) :: map()
-  def draw_vehicle(graph, position_rrm, velocity_mps, attitude_rad, origin, vp_height) do
+  @spec draw_vehicle(map(), map(), number(), number(), struct(), float()) :: map()
+  def draw_vehicle(graph, position_rrm, groundspeed_mps, yaw_rad, origin, vp_height) do
     %{SVN.latitude_rad() => lat, SVN.longitude_rad() => lon} = position_rrm
-    %{SVN.groundspeed_mps() => speed} = velocity_mps
-    %{SVN.yaw_rad() => yaw} = attitude_rad
     {y_plot, x_plot} = ViaDisplayScenic.Planner.Origin.get_xy(origin, lat, lon)
     # Logger.debug("xy_plot: #{x_plot}/#{y_plot}")
-    vehicle_size = ceil(speed / 10) + 10
+    vehicle_size = ceil(groundspeed_mps / 10) + 10
 
     Scenic.Graph.delete(graph, :vehicle)
     |> ViaDisplayScenic.Utils.draw_arrow(
       x_plot,
       vp_height - y_plot,
-      yaw,
+      yaw_rad,
       vehicle_size,
       :vehicle,
       true

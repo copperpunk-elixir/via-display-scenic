@@ -8,9 +8,10 @@ defmodule ViaDisplayScenic.Supervisor do
   end
 
   def init(config) do
+    operator_config = Keyword.fetch!(config, :Operator)
     children = [
-      apply(config[:display_module], :child_spec, [Keyword.drop(config, [:display_module])]),
-      {ViaDisplayScenic.Operator, []}
+      apply(config[:display_module], :child_spec, [Keyword.drop(config, [:display_module, :Operator])]),
+      {ViaDisplayScenic.Operator, operator_config}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
