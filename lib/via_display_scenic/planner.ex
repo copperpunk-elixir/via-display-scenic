@@ -3,6 +3,7 @@ defmodule ViaDisplayScenic.Planner do
   require Logger
   require ViaUtils.Shared.Groups, as: Groups
   require ViaUtils.Shared.ValueNames, as: SVN
+  require ViaDisplayScenic.Ids, as: Ids
   import Scenic.Primitives
 
   @impl Scenic.Scene
@@ -24,27 +25,30 @@ defmodule ViaDisplayScenic.Planner do
       Scenic.Graph.build()
       |> rect({vp_width, vp_height})
 
-    {graph, _, _} =
-      ViaDisplayScenic.Utils.add_button_to_graph(
-        graph,
-        %{
-          text: "GCS",
-          id: :go_to_gcs,
-          theme: %{text: :white, background: :blue, active: :grey, border: :white},
-          width: go_to_gcs_width,
-          height: go_to_gcs_height,
-          font_size: 19,
-          offset_x: vp_width - go_to_gcs_width - 10,
-          offset_y: vp_height - go_to_gcs_height - 10
-        }
-      )
+    {graph, _offset_x, _offset_y} =
+      ViaDisplayScenic.Utils.add_sidebar(graph, vp_width, Ids.button_go_to_planner())
+
+    # {graph, _, _} =
+    #   ViaDisplayScenic.Utils.add_button_to_graph(
+    #     graph,
+    #     %{
+    #       text: "GCS",
+    #       id: Ids.button_go_to_gcs(),
+    #       theme: %{text: :white, background: :blue, active: :grey, border: :white},
+    #       width: go_to_gcs_width,
+    #       height: go_to_gcs_height,
+    #       font_size: 19,
+    #       offset_x: vp_width - go_to_gcs_width - 10,
+    #       offset_y: vp_height - go_to_gcs_height - 10
+    #     }
+    #   )
 
     {graph, _, _} =
       ViaDisplayScenic.Utils.add_button_to_graph(
         graph,
         %{
           text: "Load\nRacetrack",
-          id: :load_racetrack,
+          id: Ids.button_load_racetrack(),
           theme: %{text: :white, background: :purple, active: :grey, border: :white},
           width: go_to_gcs_width,
           height: go_to_gcs_height,
@@ -79,8 +83,8 @@ defmodule ViaDisplayScenic.Planner do
     ViaUtils.Comms.start_operator(__MODULE__)
     ViaUtils.Comms.join_group(__MODULE__, Groups.clear_mission())
     ViaUtils.Comms.join_group(__MODULE__, Groups.display_mission())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_position_velocity_val())
-    ViaUtils.Comms.join_group(__MODULE__, Groups.estimation_attitude_attrate_val())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.ubx_position_velocity_val())
+    ViaUtils.Comms.join_group(__MODULE__, Groups.ubx_attitude_attrate_val())
 
     ViaUtils.Process.start_loop(self(), @draw_vehicle_interval_ms, @draw_vehicle_loop)
     {:ok, state, push: state.graph}
@@ -93,7 +97,7 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl true
-  def handle_cast({Groups.estimation_attitude_attrate_val(), values}, state) do
+  def handle_cast({Groups.ubx_attitude_attrate_val(), values}, state) do
     %{SVN.yaw_rad() => yaw_rad} = values
 
     {:noreply,
@@ -104,7 +108,7 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl true
-  def handle_cast({Groups.estimation_position_velocity_val(), values}, state) do
+  def handle_cast({Groups.ubx_position_velocity_val(), values}, state) do
     %{
       SVN.groundspeed_mps() => groundspeed_mps
     } = values
@@ -225,22 +229,13 @@ defmodule ViaDisplayScenic.Planner do
   end
 
   @impl Scenic.Scene
-  def filter_event({:click, :go_to_gcs}, _from, state) do
-    Logger.debug("Go To GCS")
-    vp = state.viewport
-
-    args =
-      state.args
-      |> Keyword.put(:planner_state, Map.drop(state, [:graph]))
-
-    gcs_scene = args[:gcs_scene]
-    Scenic.ViewPort.set_root(vp, {gcs_scene, args})
-    # {:cont, event, state}
+  def filter_event({:click, {Ids.button_go_to(), dest_scene}}, _from, state) do
+    ViaDisplayScenic.Utils.go_to_scene(dest_scene, :planner_state, state)
     {:noreply, state}
   end
 
   @impl Scenic.Scene
-  def filter_event({:click, :load_racetrack}, _from, state) do
+  def filter_event({:click, Ids.button_load_racetrack()}, _from, state) do
     Logger.debug("Load Racetrack")
     is_realflight = state.args[:realflight_sim]
 

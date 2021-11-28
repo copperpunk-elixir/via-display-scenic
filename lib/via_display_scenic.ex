@@ -9,6 +9,7 @@ defmodule ViaDisplayScenic do
       Keyword.take(config, [:realflight_sim])
       |> Keyword.put(:gcs_scene, gcs_scene)
       |> Keyword.put(:planner_scene, ViaDisplayScenic.Planner)
+      |> Keyword.put(:messages_scene, ViaDisplayScenic.Messages)
 
     viewports = [gcs_config(opts)]
 
@@ -31,6 +32,15 @@ defmodule ViaDisplayScenic do
       size: @size,
       default_scene: {ViaDisplayScenic.Planner, opts},
       drivers: drivers("Planner")
+    }
+  end
+
+  def messages_config(opts) do
+    %{
+      name: :planner,
+      size: @size,
+      default_scene: {ViaDisplayScenic.Messages, opts},
+      drivers: drivers("Messages")
     }
   end
 
